@@ -35,7 +35,7 @@ input[type=email],input[type=password],input[type=text]{width:100%;padding:12px;
 <script>
 const API="https://ihdzesmnsrbyqlhntuzx.supabase.co";
 const KEY="sb_publishable_juAbwgLpupVbyhDwC2OgFw_EUDbbPQH";
-const WHATSAPP="";
+const WHATSAPP="59176546197";
 const CATS=["Cultura general","Geografía","Deportes","Cine y series","Ciencia"];
 const $=document.getElementById("app");
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -160,7 +160,7 @@ function render(){
       (st.recharges>=2?'<div class="warn">Ya usaste tus 2 recargas de hoy. Vuelve mañana.</div>':"")+
       (!st.open?'<div class="warn">Las recargas están cerradas fuera del horario (10:00 a 00:00).</div>':"")+
       '<div class="qr"><img src="qr.png" alt="QR de pago" onerror="this.parentNode.textContent=\'Aquí irá el QR de pago\'"></div>'+
-      (can?'<p>1. Paga 10 Bs escaneando el QR desde la app de tu banco.<br>2. Envía el comprobante indicando tu correo: <b>'+esc(ses&&ses.email)+'</b>'+(WHATSAPP?' por <a href="https://wa.me/'+esc(WHATSAPP)+'">WhatsApp</a>':"")+'.<br>3. Cuando confirmemos el pago, toca "Actualizar" y verás tus preguntas.</p>':"")+
+      (can?'<p>1. Paga 10 Bs escaneando el QR desde la app de tu banco.<br>2. Envía el comprobante indicando tu correo: <b>'+esc(ses&&ses.email)+'</b>'+'.<br>3. Cuando confirmemos el pago, toca "Actualizar" y verás tus preguntas.</p>':"")+(can&&WHATSAPP?'<a class="btn ac" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://wa.me/'+WHATSAPP+'?text='+encodeURIComponent("Hola, pagué 10 Bs por 20 preguntas en TriviaPolis. Mi correo: "+(ses&&ses.email||""))+'">Enviar comprobante por WhatsApp</a>':"")+
       '<p class="mut">Pago realizado por un mayor de edad. Las preguntas se pierden a las 00:00. Si pagas una tercera vez en el mismo día, se devuelve el dinero.</p></div>'+
       '<button class="btn ac" onclick="loadState()">Actualizar mis preguntas</button><button class="btn alt" onclick="go(\'home\');loadState()">Volver</button>';
   }
