@@ -53,6 +53,7 @@ function tr(m){m=String(m||"");
   if(/Invalid login credentials/i.test(m))return "Correo o contraseña incorrectos.";
   if(/already registered|already been registered/i.test(m))return "Ese correo ya tiene una cuenta. Prueba entrar.";
   if(/Email not confirmed/i.test(m))return "Debes confirmar tu correo antes de entrar.";
+  if(/not authorized|not allowed|error sending|sending recovery/i.test(m))return "Por ahora no podemos enviar correos. Usa el botón de ayuda por WhatsApp.";
   if(/rate limit|too many/i.test(m))return "Demasiados intentos. Espera un momento y vuelve a probar.";
   if(/Password should be/i.test(m))return "La contraseña es muy débil o muy corta.";
   if(/valid email|invalid format/i.test(m))return "Escribe un correo válido.";
@@ -100,6 +101,33 @@ async function auth(){
     fm.pw="";busy=false;await loadState();
   }catch(e){busy=false;fail(e)}
 }
+let recTok=null;
+async function sendRecover(){
+  const q=document.getElementById("em2");fm.em=(q?q.value:fm.em||"").trim().toLowerCase();
+  if(!/^\S+@\S+\.\S+$/.test(fm.em)){msg="Escribe un correo válido.";return render()}
+  busy=true;msg="";render();
+  try{
+    await raw("/auth/v1/recover?redirect_to="+encodeURIComponent(location.origin+location.pathname),{email:fm.em});
+    busy=false;msg="Si ese correo tiene cuenta, te enviamos un enlace para crear una nueva contraseña. Revisa también la carpeta de spam.";render();
+  }catch(e){busy=false;fail(e)}
+}
+function waHelp(){
+  const q=document.getElementById("em2");if(q)fm.em=q.value.trim();
+  window.open("https://wa.me/"+WHATSAPP+"?text="+encodeURIComponent("Hola, olvidé mi contraseña de TriviaPolis. Mi correo es: "+(fm.em||"")),"_blank");
+}
+async function setNewPass(){
+  const a=document.getElementById("np1").value,b=document.getElementById("np2").value;
+  if(a.length<6){msg="La contraseña debe tener al menos 6 caracteres.";return render()}
+  if(a!==b){msg="Las contraseñas no coinciden.";return render()}
+  busy=true;msg="";render();
+  try{
+    let r;
+    try{r=await fetch(API+"/auth/v1/user",{method:"PUT",headers:{apikey:KEY,Authorization:"Bearer "+recTok,"Content-Type":"application/json"},body:JSON.stringify({password:a})})}
+    catch(e){throw new Error("Sin conexión. Revisa tu internet.")}
+    if(!r.ok){let j=null;try{j=await r.json()}catch(e){}throw new Error(tr((j&&(j.msg||j.message||j.error_description))||"El enlace venció. Pide uno nuevo."))}
+    recTok=null;saveSes(null);st=null;mode="login";fm.pw="";busy=false;scr="auth";msg="Listo, tu contraseña cambió. Ya puedes entrar.";render();
+  }catch(e){busy=false;fail(e)}
+}
 function logout(){saveSes(null);st=null;g=null;go("auth")}
 async function start(cat){
   if(busy)return;busy=true;
@@ -134,7 +162,15 @@ function render(){
       '<input id="em" type="email" placeholder="Correo" autocomplete="email" value="'+esc(fm.em)+'"><input id="pw" type="password" placeholder="Contraseña (mín. 6)" autocomplete="'+(reg?"new-password":"current-password")+'" value="'+esc(fm.pw)+'">'+
       (reg?'<label class="mut" style="display:block;margin:6px 0"><input id="ad" type="checkbox" '+(fm.ad?"checked":"")+'> Acepto los <a href="terminos.html" target="_blank" rel="noopener">términos y la privacidad</a>. Soy mayor de edad, o un adulto hará los pagos por mí.</label>':"")+
       note+'<button class="btn" onclick="auth()" '+(busy?"disabled":"")+'>'+(busy?"Un momento...":(reg?"Crear cuenta":"Entrar"))+'</button>'+
-      '<div style="text-align:center"><button class="link" onclick="saveForm();mode=\''+(reg?"login":"reg")+'\';msg=\'\';render()">'+(reg?"Ya tengo cuenta":"No tengo cuenta, crear una")+'</button></div></div>';
+      '<div style="text-align:center"><button class="link" onclick="saveForm();mode=\''+(reg?"login":"reg")+'\';msg=\'\';render()">'+(reg?"Ya tengo cuenta":"No tengo cuenta, crear una")+'</button>'+(reg?"":'<br><button class="link" onclick="saveForm();go(\'forgot\')">¿Olvidaste tu contraseña?</button>')+'</div></div>';
+  }else if(scr==="forgot"){
+    h+='<div class="card"><h2>Recuperar contraseña</h2><p class="mut">Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.</p><input id="em2" type="email" placeholder="Correo" autocomplete="email" value="'+esc(fm.em)+'">'+note+
+      '<button class="btn" onclick="sendRecover()" '+(busy?"disabled":"")+'>'+(busy?"Enviando...":"Enviarme el enlace")+'</button>'+
+      '<button class="btn wa" onclick="waHelp()">No me llega el correo: pedir ayuda por WhatsApp</button>'+
+      '<div style="text-align:center"><button class="link" onclick="go(\'auth\')">Volver a entrar</button></div></div>';
+  }else if(scr==="reset"){
+    h+='<div class="card"><h2>Crea tu nueva contraseña</h2><input id="np1" type="password" placeholder="Nueva contraseña (mín. 6)" autocomplete="new-password"><input id="np2" type="password" placeholder="Repite la contraseña" autocomplete="new-password">'+note+
+      '<button class="btn" onclick="setNewPass()" '+(busy?"disabled":"")+'>'+(busy?"Guardando...":"Guardar contraseña")+'</button></div>';
   }else if(!st){h+=note+'<p class="mut" style="text-align:center">Cargando...</p><button class="btn out" onclick="logout()">Salir</button>'}
   else if(scr==="home"){
     const tot=st.free_left+st.bought_left;
@@ -175,5 +211,13 @@ function render(){
   $.innerHTML=h;
 }
 setInterval(()=>{if(st&&(scr==="home"||scr==="pay")&&!busy)loadState()},60000);
-if(ses)loadState();else render();
+(function(){
+  const hs=location.hash.slice(1);if(!hs)return;
+  const q=new URLSearchParams(hs);
+  if(q.get("type")==="recovery"&&q.get("access_token")){recTok=q.get("access_token");scr="reset"}
+  else if(q.get("error")||q.get("error_description")){scr="forgot";msg="El enlace venció o ya se usó. Pide uno nuevo."}
+  else return;
+  try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}
+})();
+if(scr==="reset"||scr==="forgot")render();else if(ses)loadState();else render();
 </script></body></html>
