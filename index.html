@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4A3AB5">
+<title>TriviaPolis</title>
+<style>
+:root{--bg:#F6F4FF;--card:#fff;--tx:#1d1740;--mut:#6b6690;--pr:#4A3AB5;--ac:#F5A623;--ok:#1f9d55;--bad:#d64545;--bd:#e2defa;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141029;--card:#201a40;--tx:#f1eeff;--mut:#a9a3d0;--pr:#8B7BFF;--bd:#352d66}}
+:root[data-theme="dark"]{--bg:#141029;--card:#201a40;--tx:#f1eeff;--mut:#a9a3d0;--pr:#8B7BFF;--bd:#352d66}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+#app{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:28px;margin:0;text-align:center;color:var(--pr)}h1 span{color:var(--ac)}
+h2{font-size:18px;margin:16px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+.btn{display:block;width:100%;padding:14px;border:0;border-radius:12px;background:var(--pr);color:#fff;font-size:16px;font-weight:600;margin:8px 0;cursor:pointer}
+.btn.alt{background:transparent;color:var(--pr);border:2px solid var(--pr)}
+.btn.ac{background:var(--ac);color:#2a1f00}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type=email],input[type=password],input[type=text]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:16px;margin:6px 0}
+.mut{color:var(--mut);font-size:14px}.big{font-size:34px;font-weight:700;color:var(--pr)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{display:block;width:100%;text-align:left;padding:14px;margin:8px 0;border-radius:12px;border:2px solid var(--bd);background:var(--card);color:var(--tx);font-size:16px;cursor:pointer}
+.opt.ok{border-color:var(--ok);background:var(--ok);color:#fff}.opt.bad{border-color:var(--bad);background:var(--bad);color:#fff}
+.bar{height:10px;border-radius:6px;background:var(--bd);overflow:hidden}#tb{height:100%;width:100%;background:var(--ac)}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}.row:last-child{border:0}.row.me{font-weight:700}
+.pill{padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;color:#10122a}
+.qr{min-height:150px;border:2px dashed var(--bd);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--mut);text-align:center;padding:10px;margin:10px 0}
+.qr img{max-width:100%;max-height:320px;border-radius:8px}
+.warn{background:rgba(245,166,35,.15);border:1px solid var(--ac);border-radius:10px;padding:10px;font-size:14px;margin:8px 0}
+.link{background:none;border:0;color:var(--pr);font-size:15px;text-decoration:underline;cursor:pointer;padding:8px}
+</style></head><body><div id="app"></div>
+<script>
+const API="https://ihdzesmnsrbyqlhntuzx.supabase.co";
+const KEY="sb_publishable_juAbwgLpupVbyhDwC2OgFw_EUDbbPQH";
+const WHATSAPP="";
+const CATS=["Cultura general","Geografía","Deportes","Cine y series","Ciencia"];
+const $=document.getElementById("app");
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let ses=null,st=null,g=null,rank=null,scr="auth",msg="",mode="login",busy=false;
+try{ses=JSON.parse(localStorage.getItem("tp_ses"))}catch(e){}
+function saveSes(s){ses=s;try{s?localStorage.setItem("tp_ses",JSON.stringify(s)):localStorage.removeItem("tp_ses")}catch(e){}}
+function setSes(j,email){saveSes({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||Math.floor(Date.now()/1000)+(j.expires_in||3600),email:(j.user&&j.user.email)||email||(ses&&ses.email)||""})}
+function tr(m){m=String(m||"");
+  if(/Invalid login credentials/i.test(m))return "Correo o contraseña incorrectos.";
+  if(/already registered|already been registered/i.test(m))return "Ese correo ya tiene una cuenta. Prueba entrar.";
+  if(/Email not confirmed/i.test(m))return "Debes confirmar tu correo antes de entrar.";
+  if(/rate limit|too many/i.test(m))return "Demasiados intentos. Espera un momento y vuelve a probar.";
+  if(/Password should be/i.test(m))return "La contraseña es muy débil o muy corta.";
+  if(/valid email|invalid format/i.test(m))return "Escribe un correo válido.";
+  return m}
+async function raw(path,body,token){
+  const h={apikey:KEY,"Content-Type":"application/json"};
+  if(token)h.Authorization="Bearer "+token;
+  let r;
+  try{r=await fetch(API+path,{method:"POST",headers:h,body:JSON.stringify(body||{})})}catch(e){throw new Error("Sin conexión. Revisa tu internet.")}
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
+  if(!r.ok)throw new Error(tr((j&&(j.message||j.msg||j.error_description||j.error))||"Error "+r.status));
+  return j;
+}
+async function rpc(fn,body){
+  if(!ses)throw new Error("Debes iniciar sesión.");
+  if(ses.expires_at-60<Date.now()/1000){
+    try{setSes(await raw("/auth/v1/token?grant_type=refresh_token",{refresh_token:ses.refresh_token}))}
+    catch(e){saveSes(null);scr="auth";throw new Error("Tu sesión venció. Entra de nuevo.")}
+  }
+  return raw("/rest/v1/rpc/"+fn,body,ses.access_token);
+}
+function go(s){scr=s;msg="";render()}
+function fail(e){msg=e.message||String(e);render()}
+async function loadState(){try{st=await rpc("get_state",{});if(scr==="auth")scr="home";render()}catch(e){fail(e)}}
+let fm={nm:"",em:"",pw:"",ad:false};
+function saveForm(){const q=id=>document.getElementById(id);
+  if(q("em"))fm.em=q("em").value;if(q("pw"))fm.pw=q("pw").value;if(q("nm"))fm.nm=q("nm").value;if(q("ad"))fm.ad=q("ad").checked}
+async function auth(){
+  saveForm();
+  const em=fm.em.trim().toLowerCase(),pw=fm.pw,nm=fm.nm.trim(),ad=fm.ad;
+  if(!/^\S+@\S+\.\S+$/.test(em)){msg="Escribe un correo válido.";return render()}
+  if(pw.length<6){msg="La contraseña debe tener al menos 6 caracteres.";return render()}
+  if(mode==="reg"){
+    if(nm.length<3||nm.length>20){msg="Tu nombre para el ranking debe tener entre 3 y 20 letras.";return render()}
+    if(!ad){msg="Marca la casilla de mayor de edad para crear tu cuenta.";return render()}
+  }
+  busy=true;msg="";render();
+  try{
+    if(mode==="reg"){
+      const j=await raw("/auth/v1/signup",{email:em,password:pw,data:{display_name:nm,adult_ok:true}});
+      if(j&&j.access_token)setSes(j,em);
+      else{busy=false;mode="login";msg="Cuenta creada. Revisa tu correo para confirmarla y luego entra.";return render()}
+    }else{setSes(await raw("/auth/v1/token?grant_type=password",{email:em,password:pw}),em)}
+    fm.pw="";busy=false;await loadState();
+  }catch(e){busy=false;fail(e)}
+}
+function logout(){saveSes(null);st=null;g=null;go("auth")}
+async function start(cat){
+  if(busy)return;busy=true;
+  try{
+    const q=await rpc("next_question",{p_category:cat});
+    st.free_left=q.free_left;st.bought_left=q.bought_left;
+    g={cat,q:q.question,opts:q.options,ans:null,res:null,t0:Date.now(),busy:false};
+    clearInterval(g.iv);g.iv=setInterval(tick,100);scr="game";msg="";busy=false;render();
+  }catch(e){busy=false;const m=e.message||"";if(/Recarga|Sin preguntas/i.test(m)){scr="pay"}else{scr="home"}msg=m;render();if(scr==="home")loadState()}
+}
+function tick(){
+  if(!g||g.ans!==null||g.busy)return;
+  const l=15-(Date.now()-g.t0)/1000;
+  if(l<=0)return ans(-1);
+  const b=document.getElementById("tb"),s=document.getElementById("ts");
+  if(b)b.style.width=(l/15*100)+"%";if(s)s.textContent=Math.ceil(l)+" s";
+}
+async function ans(i){
+  if(!g||g.ans!==null||g.busy)return;g.busy=true;clearInterval(g.iv);
+  try{const r=await rpc("answer_question",{p_choice:i});g.ans=i;g.res=r;st.week_points=r.week_points;render()}
+  catch(e){g=null;scr="home";fail(e)}
+}
+function leave(){if(g&&g.iv)clearInterval(g.iv);g=null;go("home");loadState()}
+async function openRank(){scr="rank";rank=null;msg="";render();try{rank=await rpc("get_ranking",{});render()}catch(e){fail(e)}}
+function render(){
+  const note=msg?'<div class="warn">'+esc(msg)+"</div>":"";
+  let h='<h1>Trivia<span>Polis</span></h1>';
+  if(scr==="auth"){
+    const reg=mode==="reg";
+    h+='<div class="card"><h2>'+(reg?"Crear cuenta":"Entrar")+'</h2>'+
+      (reg?'<input id="nm" type="text" maxlength="20" placeholder="Nombre para el ranking" value="'+esc(fm.nm)+'">':"")+
+      '<input id="em" type="email" placeholder="Correo" autocomplete="email" value="'+esc(fm.em)+'"><input id="pw" type="password" placeholder="Contraseña (mín. 6)" autocomplete="'+(reg?"new-password":"current-password")+'" value="'+esc(fm.pw)+'">'+
+      (reg?'<label class="mut" style="display:block;margin:6px 0"><input id="ad" type="checkbox" '+(fm.ad?"checked":"")+'> Soy mayor de edad, o un adulto hará los pagos por mí.</label>':"")+
+      note+'<button class="btn" onclick="auth()" '+(busy?"disabled":"")+'>'+(busy?"Un momento...":(reg?"Crear cuenta":"Entrar"))+'</button>'+
+      '<div style="text-align:center"><button class="link" onclick="saveForm();mode=\''+(reg?"login":"reg")+'\';msg=\'\';render()">'+(reg?"Ya tengo cuenta":"No tengo cuenta, crear una")+'</button></div></div>';
+  }else if(!st){h+=note+'<p class="mut" style="text-align:center">Cargando...</p><button class="btn alt" onclick="logout()">Salir</button>'}
+  else if(scr==="home"){
+    const tot=st.free_left+st.bought_left;
+    h+='<p class="mut" style="text-align:center">Hola, '+esc(st.name)+'</p><div class="card" style="text-align:center"><div class="mut">Preguntas disponibles hoy</div><div class="big">'+tot+'</div><div class="mut">'+st.free_left+' gratis + '+st.bought_left+' compradas · Puntos de la semana: <b>'+st.week_points+'</b></div></div>'+note;
+    if(st.open)h+='<h2>Elige una categoría</h2>'+CATS.map(c=>'<button class="btn alt" onclick="start(\''+c+'\')" '+(busy?"disabled":"")+'>'+c+'</button>').join("");
+    else h+='<div class="card warn">TriviaPolis está cerrado. Abre todos los días a las 10:00 y cierra a las 00:00 (hora de Bolivia).</div>';
+    h+='<div class="grid"><button class="btn ac" onclick="openRank()">Ranking</button><button class="btn ac" onclick="go(\'pay\')">Recargar</button></div><button class="btn alt" onclick="logout()">Salir</button><p class="mut">Las preguntas sin usar se pierden a las 00:00 (hora de Bolivia).</p>';
+  }else if(scr==="game"&&g){
+    const r=g.res;
+    h+='<div class="card"><div style="display:flex;justify-content:space-between" class="mut"><span>'+esc(g.cat)+'</span><span id="ts">'+(g.ans===null?"15 s":"")+'</span></div><div class="bar"><div id="tb"></div></div><h2>'+esc(g.q)+'</h2>'+
+      g.opts.map((o,i)=>'<button class="opt '+(r?(i===r.correct_index?"ok":(i===g.ans?"bad":"")):"")+'" '+(r||g.busy?"disabled":'onclick="ans('+i+')"')+'>'+esc(o)+'</button>').join("")+'</div>';
+    if(r){
+      const m=g.ans===-1?"Se acabó el tiempo. 0 puntos.":(r.ok?"¡Correcto! +"+r.points+" puntos":"Incorrecta. 0 puntos");
+      const left=st.free_left+st.bought_left;
+      h+='<div class="card"><b>'+m+'</b><div class="mut">Puntos de la semana: '+r.week_points+' · Te quedan '+left+' preguntas.</div></div>'+
+        '<button class="btn" onclick="start(\''+g.cat+'\')" '+(left>0?"":"disabled")+'>Siguiente pregunta</button>'+(left>0?"":'<button class="btn ac" onclick="clearInterval(g.iv);go(\'pay\')">Recargar preguntas</button>')+
+        '<button class="btn alt" onclick="leave()">Volver al menú</button>';
+    }
+  }else if(scr==="rank"){
+    const bd=[["Diamante","#7DD3FC"],["Oro","#F5A623"],["Plata","#C0C6D2"]];
+    h+='<h2>Ranking semanal</h2>'+note;
+    if(!rank)h+='<p class="mut">Cargando...</p>';
+    else if(!rank.length)h+='<div class="card mut">Aún no hay jugadores esta semana. ¡Sé el primero!</div>';
+    else h+='<div class="card">'+rank.map((p,i)=>'<div class="row'+(p.me?" me":"")+'"><b style="width:24px">'+(i+1)+'</b><span style="flex:1">'+esc(p.name)+(p.me?" (tú)":"")+'</span>'+(i<3?'<span class="pill" style="background:'+bd[i][1]+'">'+bd[i][0]+'</span>':"")+'<b>'+p.points+'</b></div>').join("")+'</div>';
+    h+='<p class="mut">Se reinicia cada lunes. Los puntos son los segundos que te sobran al responder bien.</p><button class="btn alt" onclick="go(\'home\');loadState()">Volver</button>';
+  }else if(scr==="pay"){
+    const can=st.open&&st.recharges<2;
+    h+='<h2>Recargar preguntas</h2><div class="card"><b>10 Bs = 20 preguntas</b><div class="mut">Recargas hoy: '+st.recharges+' de 2 (máximo 40 preguntas por día)</div>'+note+
+      (st.recharges>=2?'<div class="warn">Ya usaste tus 2 recargas de hoy. Vuelve mañana.</div>':"")+
+      (!st.open?'<div class="warn">Las recargas están cerradas fuera del horario (10:00 a 00:00).</div>':"")+
+      '<div class="qr"><img src="qr.png" alt="QR de pago" onerror="this.parentNode.textContent=\'Aquí irá el QR de pago\'"></div>'+
+      (can?'<p>1. Paga 10 Bs escaneando el QR desde la app de tu banco.<br>2. Envía el comprobante indicando tu correo: <b>'+esc(ses&&ses.email)+'</b>'+(WHATSAPP?' por <a href="https://wa.me/'+esc(WHATSAPP)+'">WhatsApp</a>':"")+'.<br>3. Cuando confirmemos el pago, toca "Actualizar" y verás tus preguntas.</p>':"")+
+      '<p class="mut">Pago realizado por un mayor de edad. Las preguntas se pierden a las 00:00. Si pagas una tercera vez en el mismo día, se devuelve el dinero.</p></div>'+
+      '<button class="btn ac" onclick="loadState()">Actualizar mis preguntas</button><button class="btn alt" onclick="go(\'home\');loadState()">Volver</button>';
+  }
+  $.innerHTML=h;
+}
+setInterval(()=>{if(st&&(scr==="home"||scr==="pay")&&!busy)loadState()},60000);
+if(ses)loadState();else render();
+</script></body></html>
