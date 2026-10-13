@@ -18,6 +18,9 @@ h2{font-size:18px;margin:16px 0 8px}
 .btn{display:block;width:100%;padding:14px;border:0;border-radius:12px;background:var(--pr);color:#fff;font-size:16px;font-weight:600;margin:8px 0;cursor:pointer}
 .btn.alt{background:transparent;color:var(--pr);border:2px solid var(--pr)}
 .btn.ac{background:var(--ac);color:#2a1f00}
+.btn.cat{background:#3A2D96;color:#FFC93C;border:2px solid #3A2D96}
+.btn.out{background:transparent;color:#E0524F;border:2px solid #E0524F}
+.btn.wa{background:#0E2A1A;color:#25D366;border:2px solid #25D366}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 input[type=email],input[type=password],input[type=text]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:16px;margin:6px 0}
 .mut{color:var(--mut);font-size:14px}.big{font-size:34px;font-weight:700;color:var(--pr)}
@@ -30,12 +33,15 @@ input[type=email],input[type=password],input[type=text]{width:100%;padding:12px;
 .qr{min-height:150px;border:2px dashed var(--bd);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--mut);text-align:center;padding:10px;margin:10px 0}
 .qr img{max-width:100%;max-height:320px;border-radius:8px}
 .warn{background:rgba(245,166,35,.15);border:1px solid var(--ac);border-radius:10px;padding:10px;font-size:14px;margin:8px 0}
+a{color:var(--pr)}
 .link{background:none;border:0;color:var(--pr);font-size:15px;text-decoration:underline;cursor:pointer;padding:8px}
 </style></head><body><div id="app"></div>
 <script>
 const API="https://ihdzesmnsrbyqlhntuzx.supabase.co";
 const KEY="sb_publishable_juAbwgLpupVbyhDwC2OgFw_EUDbbPQH";
 const WHATSAPP="59176546197";
+const CHANNEL="https://whatsapp.com/channel/0029VbECjdMAzNbwsyNPEl0j";
+const FOOT='<p class="mut" style="text-align:center;margin-top:24px"><a href="terminos.html" target="_blank" rel="noopener">Términos y privacidad</a></p>';
 const CATS=["Cultura general","Geografía","Deportes","Cine y series","Ciencia"];
 const $=document.getElementById("app");
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -82,7 +88,7 @@ async function auth(){
   if(pw.length<6){msg="La contraseña debe tener al menos 6 caracteres.";return render()}
   if(mode==="reg"){
     if(nm.length<3||nm.length>20){msg="Tu nombre para el ranking debe tener entre 3 y 20 letras.";return render()}
-    if(!ad){msg="Marca la casilla de mayor de edad para crear tu cuenta.";return render()}
+    if(!ad){msg="Marca la casilla para aceptar los términos y confirmar que eres mayor de edad (o que un adulto pagará).";return render()}
   }
   busy=true;msg="";render();
   try{
@@ -126,16 +132,17 @@ function render(){
     h+='<div class="card"><h2>'+(reg?"Crear cuenta":"Entrar")+'</h2>'+
       (reg?'<input id="nm" type="text" maxlength="20" placeholder="Nombre para el ranking" value="'+esc(fm.nm)+'">':"")+
       '<input id="em" type="email" placeholder="Correo" autocomplete="email" value="'+esc(fm.em)+'"><input id="pw" type="password" placeholder="Contraseña (mín. 6)" autocomplete="'+(reg?"new-password":"current-password")+'" value="'+esc(fm.pw)+'">'+
-      (reg?'<label class="mut" style="display:block;margin:6px 0"><input id="ad" type="checkbox" '+(fm.ad?"checked":"")+'> Soy mayor de edad, o un adulto hará los pagos por mí.</label>':"")+
+      (reg?'<label class="mut" style="display:block;margin:6px 0"><input id="ad" type="checkbox" '+(fm.ad?"checked":"")+'> Acepto los <a href="terminos.html" target="_blank" rel="noopener">términos y la privacidad</a>. Soy mayor de edad, o un adulto hará los pagos por mí.</label>':"")+
       note+'<button class="btn" onclick="auth()" '+(busy?"disabled":"")+'>'+(busy?"Un momento...":(reg?"Crear cuenta":"Entrar"))+'</button>'+
       '<div style="text-align:center"><button class="link" onclick="saveForm();mode=\''+(reg?"login":"reg")+'\';msg=\'\';render()">'+(reg?"Ya tengo cuenta":"No tengo cuenta, crear una")+'</button></div></div>';
-  }else if(!st){h+=note+'<p class="mut" style="text-align:center">Cargando...</p><button class="btn alt" onclick="logout()">Salir</button>'}
+  }else if(!st){h+=note+'<p class="mut" style="text-align:center">Cargando...</p><button class="btn out" onclick="logout()">Salir</button>'}
   else if(scr==="home"){
     const tot=st.free_left+st.bought_left;
     h+='<p class="mut" style="text-align:center">Hola, '+esc(st.name)+'</p><div class="card" style="text-align:center"><div class="mut">Preguntas disponibles hoy</div><div class="big">'+tot+'</div><div class="mut">'+st.free_left+' gratis + '+st.bought_left+' compradas · Puntos de la semana: <b>'+st.week_points+'</b></div></div>'+note;
-    if(st.open)h+='<h2>Elige una categoría</h2>'+CATS.map(c=>'<button class="btn alt" onclick="start(\''+c+'\')" '+(busy?"disabled":"")+'>'+c+'</button>').join("");
+    if(st.open)h+='<h2>Elige una categoría</h2>'+CATS.map(c=>'<button class="btn cat" onclick="start(\''+c+'\')" '+(busy?"disabled":"")+'>'+c+'</button>').join("");
     else h+='<div class="card warn">TriviaPolis está cerrado. Abre todos los días a las 10:00 y cierra a las 00:00 (hora de Bolivia).</div>';
-    h+='<div class="grid"><button class="btn ac" onclick="openRank()">Ranking</button><button class="btn ac" onclick="go(\'pay\')">Recargar</button></div><button class="btn alt" onclick="logout()">Salir</button><p class="mut">Las preguntas sin usar se pierden a las 00:00 (hora de Bolivia).</p>';
+    h+='<a class="btn wa" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="'+CHANNEL+'">Únete a nuestro canal de WhatsApp</a>';
+    h+='<div class="grid"><button class="btn ac" onclick="openRank()">Ranking</button><button class="btn ac" onclick="go(\'pay\')">Recargar</button></div><button class="btn out" onclick="logout()">Salir</button><p class="mut">Las preguntas sin usar se pierden a las 00:00 (hora de Bolivia).</p>';
   }else if(scr==="game"&&g){
     const r=g.res;
     h+='<div class="card"><div style="display:flex;justify-content:space-between" class="mut"><span>'+esc(g.cat)+'</span><span id="ts">'+(g.ans===null?"15 s":"")+'</span></div><div class="bar"><div id="tb"></div></div><h2>'+esc(g.q)+'</h2>'+
@@ -161,9 +168,10 @@ function render(){
       (!st.open?'<div class="warn">Las recargas están cerradas fuera del horario (10:00 a 00:00).</div>':"")+
       '<div class="qr"><img src="qr.png" alt="QR de pago" onerror="this.parentNode.textContent=\'Aquí irá el QR de pago\'"></div>'+
       (can?'<p>1. Paga 10 Bs escaneando el QR desde la app de tu banco.<br>2. Envía el comprobante indicando tu correo: <b>'+esc(ses&&ses.email)+'</b>'+'.<br>3. Cuando confirmemos el pago, toca "Actualizar" y verás tus preguntas.</p>':"")+(can&&WHATSAPP?'<a class="btn ac" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://wa.me/'+WHATSAPP+'?text='+encodeURIComponent("Hola, pagué 10 Bs por 20 preguntas en TriviaPolis. Mi correo: "+(ses&&ses.email||""))+'">Enviar comprobante por WhatsApp</a>':"")+
-      '<p class="mut">Pago realizado por un mayor de edad. Las preguntas se pierden a las 00:00. Si pagas una tercera vez en el mismo día, se devuelve el dinero.</p></div>'+
+      '<p class="mut">Pago realizado por un mayor de edad. Las preguntas se pierden a las 00:00. Las recargas no se reembolsan: revisa bien antes de pagar.</p></div>'+
       '<button class="btn ac" onclick="loadState()">Actualizar mis preguntas</button><button class="btn alt" onclick="go(\'home\');loadState()">Volver</button>';
   }
+  if(scr!=="game")h+=FOOT;
   $.innerHTML=h;
 }
 setInterval(()=>{if(st&&(scr==="home"||scr==="pay")&&!busy)loadState()},60000);
