@@ -200,9 +200,9 @@ function render(){
   }else if(scr==="pay"){
     const can=st.open&&st.recharges<2;
     h+='<h2>Recargar preguntas</h2><div class="card"><b>10 Bs = 20 preguntas</b><div class="mut">Recargas hoy: '+st.recharges+' de 2 (máximo 40 preguntas por día)</div>'+note+
-      (st.recharges>=2?'<div class="warn">Ya usaste tus 2 recargas de hoy. Vuelve mañana.</div>':"")+
+      (st.recharges>=2?'<div class="warn" style="text-align:center"><b>Límite de recargas diarias agotado</b><br>Ya activaste tus 2 recargas de hoy (40 preguntas). Vuelve mañana desde las 10:00.</div>':"")+
       (!st.open?'<div class="warn">Las recargas están cerradas fuera del horario (10:00 a 00:00).</div>':"")+
-      '<div class="qr"><img src="qr.png" alt="QR de pago" onerror="this.parentNode.textContent=\'Aquí irá el QR de pago\'"></div>'+
+      (can?'<div class="qr"><img src="qr.png" alt="QR de pago" onerror="this.parentNode.textContent=\'Aquí irá el QR de pago\'"></div>':"")+
       (can?'<p>1. Paga 10 Bs escaneando el QR desde la app de tu banco.<br>2. Envía el comprobante indicando tu correo: <b>'+esc(ses&&ses.email)+'</b>'+'.<br>3. Cuando confirmemos el pago, toca "Actualizar" y verás tus preguntas.</p>':"")+(can&&WHATSAPP?'<a class="btn ac" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://wa.me/'+WHATSAPP+'?text='+encodeURIComponent("Hola, pagué 10 Bs por 20 preguntas en TriviaPolis. Mi correo: "+(ses&&ses.email||""))+'">Enviar comprobante por WhatsApp</a>':"")+
       '<p class="mut">Pago realizado por un mayor de edad. Las preguntas se pierden a las 00:00. Las recargas no se reembolsan: revisa bien antes de pagar.</p></div>'+
       '<button class="btn ac" onclick="loadState()">Actualizar mis preguntas</button><button class="btn alt" onclick="go(\'home\');loadState()">Volver</button>';
